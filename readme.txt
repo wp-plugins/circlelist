@@ -27,6 +27,9 @@ Circle List is management for Circle(Booth) Link in your event.
 
 == Changelog ==
 
+= 0.2 =
+* New function : Import file and Export file.
+
 = 0.1 =
 * first version.
 
