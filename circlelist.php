@@ -2,7 +2,7 @@
 
 /*
   Plugin Name: Circle List
-  Version: 0.1
+  Version: 0.2
   Description: Manage Circle(Booth) List tool.
   Author: YANO Yasuhiro
   Author URI: https://plus.google.com/u/0/+YANOYasuhiro/
@@ -19,6 +19,7 @@ class CircleList {
 
 	const TEXTDOMAIN	 = 'circlelist';
 	const POST_TYPE	 = 'circlelist';
+	const TAXONOMY	 = 'circlelist_taxonomy';
 
 	function __construct() {
 
@@ -29,8 +30,8 @@ class CircleList {
 		add_action( 'add_meta_boxes', array( $this, 'add_circle_meta_box' ) );
 		add_action( 'save_post', array( $this, 'save_circle_meta_box' ) );
 
-		add_filter( 'manage_' . self::POST_TYPE . '_posts_columns', array( $this, 'edit_custom_columns' ) );
-		add_filter( 'manage_' . self::POST_TYPE . '_posts_custom_column', array( $this, 'add_custom_columns' ) );
+		add_filter( 'manage_' . self::POST_TYPE . '_posts_columns', array( $this, 'edit_custom_columns' ), 10, 2 );
+		add_filter( 'manage_' . self::POST_TYPE . '_posts_custom_column', array( $this, 'add_custom_columns' ), 10, 2 );
 		add_filter( 'wp_insert_post_data', array( $this, 'save_circle_content' ), 10, 2 );
 
 		require_once 'admin_menu.class.php';
@@ -43,11 +44,9 @@ class CircleList {
 	function register_activation() {
 		$option = get_option( 'circlelist_setting' );
 
-		if ( !isset( $option['URL1_Title'] ) )
-			$option['URL1_Title']	 = 'URL1_Title';
-		if ( !isset( $option['URL2_Title'] ) )
-			$option['URL2_Title']	 = 'URL2_Title';
-		
+		if ( !isset( $option['URL1_Title'] ) ) $option['URL1_Title']	 = 'URL1_Title';
+		if ( !isset( $option['URL2_Title'] ) ) $option['URL2_Title']	 = 'URL2_Title';
+
 		update_option( 'circlelist_setting', $option );
 	}
 
@@ -56,7 +55,7 @@ class CircleList {
 		$newColumns['title']		 = __( 'Space name', self::TEXTDOMAIN );
 		$newColumns['circlename']	 = __( 'Circle name', self::TEXTDOMAIN );
 		$newColumns['authorname']	 = __( 'Author name', self::TEXTDOMAIN );
-		$newColumns['categories']	 = $columns['categories'];
+		$newColumns['taxonomy']		 = __( 'Taxonomy', self::TEXTDOMAIN );
 		$newColumns['date']			 = $columns['date'];
 		return $newColumns;
 	}
@@ -77,6 +76,17 @@ class CircleList {
 				$authorname = get_post_meta( $post_id, 'AuthorName', true );
 				if ( isset( $authorname ) && $authorname ) {
 					echo esc_attr( $authorname );
+				} else {
+					echo __( 'None', self::TEXTDOMAIN );
+				}
+				break;
+
+			case 'taxonomy':
+				$taxonomies = get_the_terms( $post_id, self::TAXONOMY );
+				if ( isset( $taxonomies ) ) {
+					foreach ( $taxonomies as $taxonomy ) {
+						echo esc_attr( $taxonomy->name ) . ", ";
+					}
 				} else {
 					echo __( 'None', self::TEXTDOMAIN );
 				}
@@ -122,6 +132,11 @@ class CircleList {
 		  esc_html( get_post_meta( $post->ID, 'AuthorKana', true ) ) );
 		echo '</label></p>';
 
+		printf( '<p><label>%s<br />', __( 'Circle image Url', self::TEXTDOMAIN ) );
+		printf( '<input type="text" name="CircleImageUrl" value="%s" style="width:80%%">',
+		  esc_html( get_post_meta( $post->ID, 'CircleImageUrl', true ) ) );
+		echo '</label></p>';
+
 		$option = get_option( 'circlelist_setting' );
 
 		printf( '<p><label>URL : %s<br />', esc_html( $option['URL1_Title'] ) );
@@ -160,13 +175,14 @@ class CircleList {
 			update_post_meta( $post->ID, 'CircleKana', $_POST['CircleKana'] );
 			update_post_meta( $post->ID, 'AuthorName', $_POST['AuthorName'] );
 			update_post_meta( $post->ID, 'AuthorKana', $_POST['AuthorKana'] );
+			update_post_meta( $post->ID, 'CircleImageUrl', $_POST['CircleImageUrl'] );
 			update_post_meta( $post->ID, 'url1', $_POST['url1'] );
 			update_post_meta( $post->ID, 'url2', $_POST['url2'] );
 		}
 	}
 
 	function save_circle_content( $data, $postarr ) {
-		if ( isset($_POST['post_type']) && self::POST_TYPE == $_POST['post_type'] ) {
+		if ( isset( $_POST['post_type'] ) && self::POST_TYPE == $_POST['post_type'] ) {
 			$data['post_content'] = '[CircleInfo]';
 		}
 		return $data;
@@ -195,7 +211,7 @@ class CircleList {
 			'label'					 => __( 'circlelist', self::TEXTDOMAIN ),
 			'description'			 => __( 'Circle List for Event', self::TEXTDOMAIN ),
 			'labels'				 => $labels,
-			'supports'				 => array( 'title', 'thumbnail', ),
+			'supports'				 => array( 'title', ), //thumbnail
 			'taxonomies'			 => array( self::POST_TYPE ),
 			'hierarchical'			 => false,
 			'public'				 => true,
@@ -243,7 +259,7 @@ class CircleList {
 			'show_in_nav_menus'	 => true,
 			'show_tagcloud'		 => false,
 		);
-		register_taxonomy( 'circlelist_taxonomy', array( self::POST_TYPE ), $args );
+		register_taxonomy( self::TAXONOMY, array( self::POST_TYPE ), $args );
 	}
 
 }
